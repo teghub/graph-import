@@ -5,7 +5,7 @@ In the first phase, we have tokenized the textual data using Zemberek ( https://
 Then using morphology module of Zemberek, we find Parts-of-speech tag of each token. We need POS tags because our NER module uses POS tags as a feature. We feed our tokenized and pos tagged data to the NER module and extract named entities from the service. You can get more information about the NER module from: https://github.com/teghub/ner 
 
 In the first phase you should execute the following methods in "FileTokenizer.java":
-	i) void tokenizeContent(String contentPath, String tokenizedPath )
+	1) void tokenizeContent(String contentPath, String tokenizedPath )
 		It tokenizes the raw textual content and removes non unicode characters and emojis from the texts. Besides we remove web links and some non-alphanumeric characters since we observe that Zemberek disambiguates those kind of stuff inaccurately.
 		
 	2) void lemmatizeContent(String inputPath, String outputPath)
