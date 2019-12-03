@@ -166,9 +166,4 @@ public class Utils {
         return replaced;
     }
 
-    public static void main(String[] args) {
-        // getCategories(NEWSPATH+"\\haberler_db.txt");
-        // double avg = wordCount(NEWSPATH+"\\content_orig.txt");
-        // System.out.println("Avg: " + avg);
-    }
 }

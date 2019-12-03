@@ -124,16 +124,6 @@ public class Zemberek {
         }
     }
 
-    // normalizeSentence unicode characters
-    public String normalizedString(String word) {
-        ///*
-        String str = Normalizer.normalize(word, Normalizer.Form.NFD);
-        str = str.replaceAll("\\p{Mn}", "");
-        return str.toUpperCase();
-        //*/
-        // return word.toLowerCase(Turkish.LOCALE);
-    }
-
     public void printLemmas(String sentence) {
         List<SingleAnalysis> singleAnalysisList = morphology.analyzeAndDisambiguate(sentence).bestAnalysis();
         for (SingleAnalysis singleAnalysis : singleAnalysisList) {

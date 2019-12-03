@@ -1,4 +1,7 @@
-import zemberek.morphology.analysis.SingleAnalysis;
+import entity.NamedEntity;
+import entity.News;
+import entity.Node;
+import entity.Relation;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -240,16 +243,46 @@ public class Neo4jManager {
         return false;
     }
     // retrieve all named entities
-    public void getNamedEntities(BufferedReader br, Zemberek zemberek, List<NamedEntity> neList) throws IOException {
-        String line = br.readLine();
+    public void getNamedEntities(BufferedReader br,  List<NamedEntity> neList, boolean includeNoun, String sentence) throws IOException {
+        String[] args = sentence.split(" ");
+        String line;
         StringBuilder sb = new StringBuilder();
         String annot = null;
-        while(line != null && !line.isEmpty() /*!line.contains("<S>")*/ ) {
+        boolean checkOnce = false;
+        while((line  = br.readLine()) != null && !line.isEmpty() /*!line.contains("<S>")*/ ) {
+            line = line.replaceAll("\"", "'");
+            if (!includeNoun) {
+                line = line.replaceAll("NOUN", "O");
+            }
             String words[] = line.split("\t");
             String annotation = words[1];
-            String pos = words[2];
+            //String pos = words[2];
+
+            if (!checkOnce) { // check whether first arguments are matched. If there is a mismatch, skip all mismatched arguments
+                if (!words[0].contains(args[0].toLowerCase())) {
+                    System.out.println("Not matched!");
+                    while(true) {
+                        line = br.readLine();
+                        if (line == null)
+                            return;
+                        if (!line.contains("\t"))
+                            continue;
+                        line = line.replaceAll("\"", "'");
+                        if (!includeNoun) {
+                            line = line.replaceAll("NOUN", "O");
+                        }
+                        words = line.split("\t");
+                        annotation = words[1];
+                        if (words[0].contains(args[0].toLowerCase())) {
+                            break;
+                        }
+                    }
+                }
+                checkOnce = true;
+            }
+
+
             boolean eone = false;
-            boolean checkNoun = false;
             if (!annotation.equals("O") && !words[0].isEmpty()) { // named entity
                 if (annot == null || annot.equals(annotation)) { // part of current named entity
                     String lemma = words[0];
@@ -286,17 +319,16 @@ public class Neo4jManager {
                 }
             }
 
-            /*
-            if (annotation.equalsIgnoreCase("O") && pos.equalsIgnoreCase("noun")) {
+            ///*
+            if (includeNoun && annotation.equalsIgnoreCase("noun")) {
                 NamedEntity namedEntity = getNamedEntity(words[0], "O");
                 if (namedEntity == null) {
                     namedEntity = new NamedEntity(words[0], "O");
                 }
                 neList.add(namedEntity);
             }
-            */
+            //*/
 
-            line = br.readLine();
         }
     }
 }

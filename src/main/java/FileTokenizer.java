@@ -1,16 +1,19 @@
+import entity.NamedEntity;
+import entity.News;
+import entity.Triplet;
 import zemberek.morphology.analysis.SingleAnalysis;
 import zemberek.tokenization.Token;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.regex.Pattern;
 
 public class FileTokenizer {
 
-    private Zemberek zemberek;
-    private Neo4jManager neo4jManager;
     private BufferedReader bufferedReader = null;
 
     private static String REGEXPUNCT = "[\\p{Punct}\\p{IsPunctuation}]";
@@ -19,50 +22,10 @@ public class FileTokenizer {
     private static Pattern PATTERNDIGIT = Pattern.compile("[\\d+]'.*");
     private static Pattern APOST = Pattern.compile("^'.*");
 
-    private HashMap<String, String> characterMap;
+    private TextProcessing textProcessing;
 
     public FileTokenizer() {
-        zemberek = new Zemberek();
-        neo4jManager = new Neo4jManager();
-
-        characterMap = new HashMap<>();
-        characterMap.put("̇ş", "ş");
-        characterMap.put("̇n", "n");
-        characterMap.put("î", "i");
-        characterMap.put("â", "a");
-        characterMap.put("̇ş".toUpperCase(), "Ş");
-        characterMap.put("̇n".toUpperCase(), "N");
-        characterMap.put("î".toUpperCase(), "İ");
-        characterMap.put("â".toUpperCase(), "A");
-        characterMap.put("Å", "A");
-        characterMap.put("Å".toLowerCase(), "a");
-        characterMap.put("►", "");
-        characterMap.put("û", "u");
-        characterMap.put("û".toUpperCase(), "U");
-        characterMap.put("ü", "ü");
-        characterMap.put("ü".toUpperCase(), "Ü");
-
-
-        characterMap.put("http.*\\s", " ");
-        characterMap.put("http.*", "");
-        characterMap.put("www.*\\s", " ");
-        characterMap.put("’", "'");
-        characterMap.put("´", "'");
-        characterMap.put("`", "'");
-        characterMap.put("‘", "'");
-        characterMap.put("”", "\"");
-        characterMap.put("“", "\"");
-        characterMap.put("\"", " \" ");
-        characterMap.put("-", " - ");
-        characterMap.put("–", " – ");
-        characterMap.put("\\.'", ". '");
-        characterMap.put("\\$", " \\$ ");
-        characterMap.put("&", " & ");
-        characterMap.put("/", " / ");
-        characterMap.put("\\^", " \\^ ");
-        characterMap.put(" ", " ");
-        characterMap.put(" ", " "); // weird square character
-        characterMap.put("Æ", "");
+        textProcessing = new TextProcessing();
     }
 
     // write updated pos tags to sentenceTripletList and put them in tripletList
@@ -83,15 +46,15 @@ public class FileTokenizer {
             sb.setCharAt(sb.length() - 1, '.');
         }
 
-        List<SingleAnalysis> analysisList = zemberek.disambiguateSentence(sb.toString());
+        List<SingleAnalysis> analysisList = textProcessing.getZemberek().disambiguateSentence(sb.toString());
         int index = 0;
         int length = sentenceTripletList.size();
 
         // append pos tags
         for (SingleAnalysis singleAnalysis : analysisList) {
             if (index < length ) {
-                String norm_word = zemberek.normalizedString(sentenceTripletList.get(index).getWord());
-                String norm_sf = zemberek.normalizedString(singleAnalysis.surfaceForm());
+                String norm_word = TextProcessing.normalizedString(sentenceTripletList.get(index).getWord());
+                String norm_sf = TextProcessing.normalizedString(singleAnalysis.surfaceForm());
 
                 String clean_word = norm_word.replaceAll(REGEXPUNCT, ""); // remove all punctiation characters
                 // clean_word = clean_word.replaceAll("’", ""); // remove apostrophe
@@ -125,6 +88,11 @@ public class FileTokenizer {
 
                     }
 
+                    else {
+                        System.out.println("Word - Surface Form mismatch!");
+                        System.out.println(norm_word + " - " + norm_sf);
+                    }
+
 
                 }
             }
@@ -149,7 +117,7 @@ public class FileTokenizer {
 
             while (line != null) {
 
-                line = Utils.replaceSequence(line, characterMap);
+                line = Utils.replaceSequence(line, textProcessing.getCharacterMap());
                 line = EmojiUtils.removeEmoji(line);
                 line = line.replaceAll(REGEXSPACE," "); // eliminate whitespaces
 
@@ -168,11 +136,11 @@ public class FileTokenizer {
                             //System.out.println("Token is empty!");
                             continue;
                         }
-
+                        /*
                         if (token.equals(".")) {
-                            sentenceTripletList.add(new Triplet(token, null, "O"));
+                            sentenceTripletList.add(new entity.Triplet(token, null, "O"));
                             updatePosTags(sentenceTripletList, tripletList); // find pos tag of each token
-                            for (Triplet triplet : tripletList) {
+                            for (entity.Triplet triplet : tripletList) {
                                 bw.write(triplet.getWord() + "\t" + triplet.getPos() + "\t" + triplet.getAnnotation() + "\n");
                             }
 
@@ -185,6 +153,9 @@ public class FileTokenizer {
                             tripletList.clear();
                             continue;
                         }
+
+                         */
+
                         if (token.startsWith("<b_")) { // named entity detected
                             isNamedEntity = true;
                             index = 1;
@@ -261,9 +232,9 @@ public class FileTokenizer {
             String line = br.readLine();
             while (line != null) {
 
-                List<String> sentences = zemberek.extractSentences(line);
+                List<String> sentences = textProcessing.getZemberek().extractSentences(line);
                 for (String sentence : sentences) {
-                    List<Token> tokens = zemberek.tokenizeSentence(sentence);
+                    List<Token> tokens = textProcessing.getZemberek().tokenizeSentence(sentence);
                     for (Token token : tokens) {
                         if (token.getText().startsWith("'") && token.getText().length() > 1) {
                             sentenceTripletList.add(new Triplet(token.getText(), "Apost", "O"));
@@ -308,7 +279,7 @@ public class FileTokenizer {
     }
 
     // preprocess apostrophes and tokenize content
-    public void tokenizeContent(String inputPath, String outputPath) {
+    public void tokenizeContent(String inputPath, String outputPath, boolean onlyContent) {
         BufferedReader br = null;
         BufferedWriter bw = null;
 
@@ -317,58 +288,50 @@ public class FileTokenizer {
             br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
             String line = br.readLine(); // skip header
-            line = br.readLine();
-            while (line != null) {
-                // String[] args = line.split("\t");
-                // String date = args[0];
-                // String content = args[1];
-                String content = line;
-
+            while ((line = br.readLine()) != null) {
+                String content = null, date = null, id = null, title = null;
+                if (onlyContent) {
+                    content = line;
+                }
+                else {
+                    String[] args = line.split("\t");
+                    id = args[0];
+                    if (args.length < 4) {
+                        System.out.println("Not enough args!: " + id);
+                        continue;
+                    }
+                    date = args[1].replaceAll("\t", " ");
+                    title = args[2];
+                    content = args[3];
+                }
 
                 content = content.replaceAll(" ", " ");
 
-                content = Utils.replaceSequence(content, characterMap);
+                content = Utils.replaceSequence(content, textProcessing.getCharacterMap());
                 content = EmojiUtils.removeEmoji(content);
 
                 content = content.replaceAll(REGEXSPACE, " ");
 
                 if (!content.trim().isEmpty()) { // condition for empty news
-                    // bw.write(date + "\t");
-                    List<String> sentences = zemberek.extractSentences(content);
+                    if (!onlyContent)
+                        bw.write(id + "\t" + date + "\t" + title + "\t");
+
+                    List<String> sentences = textProcessing.getZemberek().extractSentences(content);
                     for (String sentence : sentences) {
-                        List<Token> tokens = zemberek.tokenizeSentence(sentence);
-                        //String[] tokens = sentence.split(" ");
-                        for (Token token : tokens) {
-                            String tokenStr = token.getText().trim();
-                            if (tokenStr.startsWith("'") && tokenStr.length() > 1) {
-                                tokenStr = "' " + token.getText().substring(1);
-                            }
-                            boolean isMatched = false;
-                            Matcher matcher = PATTERNAPOST.matcher(tokenStr);
-                            while (matcher.find()) {
-                                isMatched = true;
-                                //Prints the start index of the match.
-                                String str = tokenStr.substring(0, matcher.start() + 1);
-                                String apost = tokenStr.substring(matcher.start() + 2);
-
-                                bw.write(str + " ' " + apost + " ");
-
-                            }
-                            if (!isMatched) {
-                                bw.write(tokenStr + " ");
-                            }
+                        List<String> tokens = textProcessing.tokenizeSentence(sentence);
+                        for (String token : tokens) {
+                            bw.write(token + " ");
                         }
 
                     }
                     bw.write("\n");
                 }
-                line = br.readLine();
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            try{
+            try {
                 bw.close();
                 br.close();
             } catch (IOException e) {e.printStackTrace();}
@@ -377,50 +340,45 @@ public class FileTokenizer {
     }
 
     // lemmatize tokenized content
-    public void lemmatizeContent(String inputPath, String outputPath) {
+    public void lemmatizeContent(String inputPath, String outputPath, boolean onlyContent) {
         BufferedWriter bw = null;
         BufferedReader br = null;
-
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
             br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
-            //String date = br.readLine();
-            String line = br.readLine();
-            while (line != null) {
-
-                line = Utils.replaceSequence(line, characterMap);
-                line = EmojiUtils.removeEmoji(line);
-
-                String content = line;
-
-                //bw.write(date + "\n");
-                List<String> sentenceList = zemberek.extractSentences(content);
-                for (String sentence : sentenceList) {
-                    StringBuilder sb = new StringBuilder();
-
-                    //sentence = sentence.replaceAll(REGEXPUNCT, "");
-                    List<SingleAnalysis> singleAnalysisList = zemberek.disambiguateSentence(sentence);
-                    for (SingleAnalysis singleAnalysis : singleAnalysisList) {
-                        String lemma = singleAnalysis.getDictionaryItem().normalizedLemma();//lemma;
-                        if (lemma.isEmpty() || lemma.equals("UNK") || lemma.contains("?")) { // lemma is errorenous
-                            lemma = singleAnalysis.surfaceForm();
-                        }
-
-                        lemma = lemma.trim();
-                        if (!lemma.isEmpty()) {
-                            sb.append(lemma + " ");
-                        }
+            String line;
+            while ((line = br.readLine()) != null) {
+                String content, date=null, id=null, title=null;
+                if (onlyContent)
+                    content = line;
+                else {
+                    String[] args = line.split("\t");
+                    id = args[0];
+                    if (args.length < 4) {
+                        System.out.println("Not enough args!: " + id);
+                        continue;
                     }
+                    date = args[1];
+                    title = args[2];
+                    content = args[3];
 
-                    String str = sb.toString().replaceAll(REGEXSPACE, " ");
-                    //bw.write(zemberek.normalizedString(sb.toString()).toLowerCase());
-                    bw.write(sb.toString()/*.toLowerCase()*/);
+                    if (!content.trim().isEmpty())
+                        bw.write(id + "\t" + date + "\t" + title + "\t");
+                }
+
+                content = Utils.replaceSequence(content, textProcessing.getCharacterMap());
+                content = EmojiUtils.removeEmoji(content);
+
+
+                List<String> sentenceList = textProcessing.getZemberek().extractSentences(content);
+                for (String sentence : sentenceList) {
+                    List<String> lemmas = textProcessing.lemmatizeSentence(sentence);
+                    for (String lemma : lemmas) {
+                        bw.write(lemma + " ");
+                    }
                 }
                 bw.write("\n");
-
-                line = br.readLine();
-
             }
 
         } catch ( IOException e) {
@@ -438,30 +396,30 @@ public class FileTokenizer {
         BufferedWriter bw = null;
         BufferedReader br = null;
 
-        Map<String, Set<String>> neMap = new HashMap<>();
-        neMap.put("PERSON", new HashSet<>());
-        neMap.put("ORGANIZATION", new HashSet<>());
-        neMap.put("LOCATION", new HashSet<>());
-        neMap.put("DATE", new HashSet<>());
-        neMap.put("MONEY", new HashSet<>());
-        neMap.put("PERCENT", new HashSet<>());
-        neMap.put("TIME", new HashSet<>());
+        Logger logger = Logger.getLogger("lemmatizePredictions");
+        FileHandler fh;
 
         int count = 0;
-        String punct = "'–";
         Pattern patternDot = Pattern.compile("[a-zA-Z].[a-zA-Z]");
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
             br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
-            String line = br.readLine();
+            // This block configure the logger with handler and formatter
+            fh = new FileHandler("logs/lemmatizePredictions.log");
+            logger.addHandler(fh);
+            SimpleFormatter formatter = new SimpleFormatter();
+            fh.setFormatter(formatter);
+            logger.setUseParentHandlers(false);
+
+            String line = null; //= br.readLine();
             StringBuilder sentence = new StringBuilder();
             List<String> annotationList = new ArrayList<>();
             List<String> tokenList = new ArrayList<>();
-            while (line != null) {
+            while ((line = br.readLine()) != null) {
                 count++;
 
-                line = Utils.replaceSequence(line, characterMap);
+                // line = Utils.replaceSequence(line, characterMap);
 
                 if (!line.isEmpty()) { // contains token
                     String[] token_annotation = line.split("\t");
@@ -470,9 +428,9 @@ public class FileTokenizer {
                     //bw.write(zemberek.lemmatize(token) + "\t" + token_annotation[1] + "\n");
 
                     int j = 0;
-                    if (token.length() > 1) {
+                    if (token.length() > 1) { // token is not a punctuation
                         token = token.replaceAll("'", "");
-
+                        //token = token.replaceAll(".", "");
                     }
 
                     if (!token.isEmpty()) {
@@ -484,30 +442,44 @@ public class FileTokenizer {
 
                 else { // end of sentence
                     if (sentence.toString().length() > 2) {
-                        List<SingleAnalysis> singleAnalysisList = zemberek.disambiguateSentence(sentence.toString());
+                        List<SingleAnalysis> singleAnalysisList = textProcessing.getZemberek().disambiguateSentence(sentence.toString());
                         int index = 0;
+                        int tokenCnt = tokenList.size();
                         for (SingleAnalysis sa : singleAnalysisList) {
-                            if (index < tokenList.size() && sa.surfaceForm().equals(".") && !tokenList.get(index).equals(".")) {
-                                System.out.println("Dot: " + sentence.toString());
+                           // /*
+                            if (index < tokenCnt && sa.surfaceForm().equals(".") && !tokenList.get(index).equals(".")) {
+                                //logger.info("Dot Mismatch! " + sentence.toString());
                                 continue;
                             }
+                           // */
 
-                            if (index < tokenList.size()) {
+                            if (index < tokenCnt) {
                                 String lemma = sa.getDictionaryItem().normalizedLemma();//lemma;
-                                if (lemma.isEmpty() || lemma.equals("UNK") || (lemma.equals("?") && !tokenList.get(index).equals("?"))) {
+                                if (lemma.isEmpty() || lemma.equalsIgnoreCase("UNK") || (lemma.equals("?") && !tokenList.get(index).equals("?"))) {
+                                    //String log = "Unknown lemma! (Token - surface form)" + "\n" +
+                                    //        tokenList.get(index) + " - " + sa.surfaceForm();
+                                    //logger.info(log);
                                     lemma = tokenList.get(index);
                                 }
-                                //System.out.println(lemma);
+
                                 //lemma = zemberek.normalizedString(lemma).toLowerCase();
                                 lemma = lemma.trim();//.toLowerCase();
                                 if (!lemma.isEmpty()) {
-                                    bw.write(lemma + "\t" + annotationList.get(index++) + "\t" + sa.getPos() + "\n");
+                                    bw.write(lemma + "\t" + annotationList.get(index++) + /* "\t" + sa.getPos() + */ "\n");
+                                }
+                                else {
+                                    System.out.println("Lemma is Empty!");
                                 }
 
                             }
                             else {
-                                System.out.println("Index Out Of Bounds: " + sa.surfaceForm() + " | "  + count);
-                                System.out.println(sentence.toString());
+                                String log = "Index Out Of Bounds: " + sa.surfaceForm() + "\n" +
+                                        "Sentence: " + sentence.toString() + "\n" +
+                                        "Line No = " + count;
+
+                                logger.info(log);
+                                String lemma = sa.getDictionaryItem().normalizedLemma().trim();
+                                bw.write(lemma + "\t" + "O" + /* "\t" + sa.getPos() + */ "\n");
                             }
                         }
 
@@ -517,7 +489,7 @@ public class FileTokenizer {
                         bw.write("\n");
                     }
                 }
-                line = br.readLine();
+                // line = br.readLine();
             }
         } catch (Exception e) {
             System.out.println(count);
@@ -534,61 +506,121 @@ public class FileTokenizer {
         }
     }
 
+    // merge token and predicted annotation
+    public  void mergeCrfFiles(String crfInputPath, String predPath, String outputPath) {
+        BufferedWriter bw = null;
+        BufferedReader br = null;
+        BufferedReader br2 = null;
+
+        try {
+            bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
+            br = new BufferedReader( new InputStreamReader(new FileInputStream(crfInputPath), StandardCharsets.UTF_8));
+            br2 = new BufferedReader( new InputStreamReader(new FileInputStream(predPath), StandardCharsets.UTF_8));
+
+            String line = br.readLine();
+            String line2 = br2.readLine();
+
+            while (line != null) {
+                if (line.isEmpty()) {
+                    bw.write("\n");
+                }
+                else {
+                    String[] tokens1 = line.split("\t");
+                    String[] tokens2 = line2.split("\t");
+                    if (!tokens1[0].toLowerCase().equals(tokens2[0].toLowerCase())) {
+                        System.out.println("Token - Prediction mismatch!");
+                        System.out.println(tokens1[0] + " - " + tokens2[0]);
+                        System.out.println("Annot: " + tokens2[1]);
+                    }
+
+                    bw.write(tokens1[0] + "\t" + tokens2[1] + "\n");
+                }
+                line2 = br2.readLine();
+                line = br.readLine();
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally{
+            try {
+                if (bw != null) {
+                    br.close();
+                    br2.close();
+                    bw.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     // prepare neo4j input file from tokenized content and crf output file
     public void prepareNeo4jInputFromCRF(String tokenizedContentPath, String predictionPath, String outputPath) {
         BufferedReader br = null;
         BufferedWriter bw = null;
+        BufferedWriter dateWriter = null;
         long count = 1;
         try {
             br = new BufferedReader( new InputStreamReader(new FileInputStream(tokenizedContentPath), StandardCharsets.UTF_8));
             bufferedReader = new BufferedReader( new InputStreamReader(new FileInputStream(predictionPath), StandardCharsets.UTF_8));
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
+            dateWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream( "neo4j\\dates3.csv"), StandardCharsets.UTF_8));
 
-            //bw.write("nid:ID,word,NamedEntity,date\n");
-            bw.write("nid:ID,word,NamedEntity\n");
-            String line = br.readLine(); // skip header
-            line = br.readLine();
-            bufferedReader.readLine(); // skip header
+            bw.write("nid:ID,word,NamedEntity,date,enum\n");
+            dateWriter.write("date,dbid\n");
+            String line;// = br.readLine(); // skip header
 
-            while (line != null) {
-                /*
+            while ((line = br.readLine()) != null) {
                 String[] args = line.split("\t");
 
-                String date = args[0];
-                int idx = date.indexOf("T");
-                date = date.substring(0,idx != -1 ? idx : date.length());
+                // /*
+                String title=null, content=null, dateStr=null;
+                Long id = count;
+                if (args.length < 4) { // only content
+                    content = line;
+                }
+                else {
+                    id = Long.parseLong(args[0]);
 
-                String content = args[1];
-                 */
-                String content = line;
+                    dateStr = args[1].replaceAll("\t", " ");
+                    int idx = dateStr.indexOf("T");
+                    dateStr = dateStr.substring(0, idx != -1 ? idx : dateStr.length());
+
+                    title = args[2];
+                    content = args[3];
+                }
+                 // */
 
                 content = content.replace("\"", "'"); // necessary for neo4j
 
-                List<String> sentences = zemberek.extractSentences(content);
+                List<String> sentences = textProcessing.getZemberek().extractSentences(content);
 
-                News news = new News(count, null, null, content);
-                neo4jManager.getNewsList().add(news);
+                News news = new News(id, dateStr, title, content);
+                textProcessing.getNeo4jManager().getNewsList().add(news);
 
                 List<NamedEntity> namedEntityList = new ArrayList<>();
                 for (String sentence : sentences) {
                     //neo4jManager.findNamedEntityMatches(bufferedReader, news, zemberek);
-                    neo4jManager.getNamedEntities(bufferedReader, zemberek, namedEntityList);
+                    if (!sentence.trim().isEmpty())
+                        textProcessing.getNeo4jManager().getNamedEntities(bufferedReader, namedEntityList, false, sentence + " ||" + id);
                 }
 
                 for (NamedEntity ne : namedEntityList) {
                     String word = ne.getLabel();
+                    if (!content.toLowerCase().contains(word)) {
+                        System.out.println(id + " - " + word);
+                    }
                     if (word.contains(",")) {
-                        //System.out.println(word);
                         word = word.replaceAll(",", ".");
                     }
-                    //bw.write(count + "," + word + "," + ne.getAnnotation() + "," + date + "\n");
-                    bw.write(count + "," + word + "," + ne.getAnnotation() + "\n");
+                    String s = id + "," + word + ',' + ne.getAnnotation() + ',' + dateStr + ',' + count + "\n";
+                    bw.write(s);
                 }
 
-                count++;
-
-                line = br.readLine();
-                // if (count > 10) break;
+                if (namedEntityList.size() > 0) {
+                    count++;
+                    dateWriter.write(dateStr + ',' + id + "\n");
+                }
             }
 
         } catch ( IOException e) {
@@ -598,9 +630,10 @@ public class FileTokenizer {
                 br.close();
                 bufferedReader.close();
                 bw.close();
+                dateWriter.close();
             } catch (IOException e) {}
 
-            System.out.println("Count = " + count);
+            System.out.println("Count = " + (count-1));
         }
     }
 
@@ -613,19 +646,24 @@ public class FileTokenizer {
         String tokenizedPath = NEWSPATH+"tokenized.txt";
         String lemmatizedPath = NEWSPATH+"lemmatized.txt";
 
-        String crfInputPath = NEWSPATH+"crf_input.txt";
-        String crfOutputPath = CRFPATH+"crf_output.txt";
+        String crfInputPath = NEWSPATH+"haberler_crf_input.txt";
+        String crfOutputPath = CRFPATH+"haberler_crf_output.txt";
+
+        String rawNewsPath = NEWSPATH+"haberler_db.txt";
 
         FileTokenizer ft = new FileTokenizer();
-        // You need to execute phases one by one because there is a dependecy between our NER module and this module.
 
+
+        // ft.transformItuEnamextoCRF("NERResources//IWT.MUClabeled", "iwt.txt");
+        // You need to execute phases one by one because there is a dependecy between our NER module and this module.
         // phase 1: tokenize the content & transform the tokenized content into crf input format
-        ft.tokenizeContent(contentPath, tokenizedPath );
-        ft.lemmatizeContent(tokenizedPath, lemmatizedPath);
+        ft.tokenizeContent(contentPath, tokenizedPath , true);
+        // ft.lemmatizeContent(tokenizedPath, lemmatizedPath, true);
         ft.prepareCrfInput (tokenizedPath, crfInputPath);
 
         // phase 2: get nodes and relations from crf output
         ft.prepareNeo4jInputFromCRF(tokenizedPath, crfOutputPath, NEO4JPATH+"neo4j_input.txt");
+
     }
 
 
