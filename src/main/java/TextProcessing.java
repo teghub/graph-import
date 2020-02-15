@@ -3,9 +3,7 @@ import zemberek.morphology.analysis.SingleAnalysis;
 import zemberek.tokenization.Token;
 
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,13 +18,13 @@ public class TextProcessing {
     private static Pattern PATTERNDIGIT = Pattern.compile("[\\d+]'.*");
     private static Pattern APOST = Pattern.compile("^'.*");
 
-    private HashMap<String, String> characterMap;
+    private SortedMap<String, String> characterMap;
 
     public TextProcessing() {
         zemberek = new Zemberek();
         neo4jManager = new Neo4jManager();
 
-        characterMap = new HashMap<>();
+        characterMap = new TreeMap<>();
         characterMap.put("̇ş", "ş");
         characterMap.put("̇n", "n");
         characterMap.put("î", "i");
@@ -43,11 +41,14 @@ public class TextProcessing {
         characterMap.put("ü", "ü");
         characterMap.put("ü".toUpperCase(), "Ü");
         characterMap.put("■", "");
+        characterMap.put("\u2028", "");
+        characterMap.put("\u2029\u2029", "");
 
 
-        characterMap.put("http.*?\\s", " ");
+        //characterMap.put("http.*?\\s", " ");
+        characterMap.put("((https?|ftp|gopher|telnet|file|Unsure|http):((//)|(\\\\))+[\\w\\d:#@%/;$()~_?\\+-=\\\\\\.&]*)", " "); // url pattern
         //characterMap.put("http.*", "");
-        characterMap.put("www.*?\\s", " ");
+        //characterMap.put("www.*?\\s", " ");
         characterMap.put("\\s*?.com", " ");
         characterMap.put("#.*?\\s", " ");
         characterMap.put("@.*?\\s", " ");
@@ -78,7 +79,7 @@ public class TextProcessing {
         return neo4jManager;
     }
 
-    public HashMap<String, String> getCharacterMap() {
+    public SortedMap<String, String> getCharacterMap() {
         return characterMap;
     }
 
@@ -128,6 +129,9 @@ public class TextProcessing {
         List<SingleAnalysis> singleAnalysisList = zemberek.disambiguateSentence(sentence);
         for (SingleAnalysis singleAnalysis : singleAnalysisList) {
             String lemma = singleAnalysis.getDictionaryItem().normalizedLemma();//lemma;
+            if (singleAnalysis.getPos().getStringForm().equalsIgnoreCase("Verb")) { // take into account -mek -mak suffixes
+                lemma = singleAnalysis.getDictionaryItem().lemma;
+            }
             if (lemma.isEmpty() || lemma.equals("UNK") || lemma.contains("?")) { // unknown lemma
                 //System.out.println("UnKnown Lemma! " + lemma + " || Surface Form: " + singleAnalysis.surfaceForm());
                 lemma = singleAnalysis.surfaceForm();

@@ -18,7 +18,7 @@ public class FileTokenizer {
 
     private static String REGEXPUNCT = "[\\p{Punct}\\p{IsPunctuation}]";
     private static String REGEXSPACE = "[\\p{Space}\\p{Blank}\\s+]";
-    private static Pattern PATTERNAPOST =  Pattern.compile( "[\\pL\\pN]'.*"/*"[a-zA-Z0-9]'.*"*/);//Pattern.compile("[a-zA-Z]'.*");
+    private static Pattern PATTERNAPOST = Pattern.compile("[\\pL\\pN]'.*"/*"[a-zA-Z0-9]'.*"*/);//Pattern.compile("[a-zA-Z]'.*");
     private static Pattern PATTERNDIGIT = Pattern.compile("[\\d+]'.*");
     private static Pattern APOST = Pattern.compile("^'.*");
 
@@ -29,7 +29,7 @@ public class FileTokenizer {
     }
 
     // write updated pos tags to sentenceTripletList and put them in tripletList
-    public void updatePosTags(List<Triplet> sentenceTripletList, List<Triplet> tripletList)  {
+    public void updatePosTags(List<Triplet> sentenceTripletList, List<Triplet> tripletList) {
         StringBuilder sb = new StringBuilder();
         for (Triplet triplet : sentenceTripletList) {
             sb.append(triplet.getWord() + " ");
@@ -38,11 +38,9 @@ public class FileTokenizer {
         if (sentenceTripletList.size() == 0) {
             System.out.println("Empty sentence!");
             return;
-        }
-        else if (sb.length() > 2 && Pattern.matches(REGEXPUNCT, ""+sb.charAt(sb.length()-2))) { // last character is a punctuation
-            sb.deleteCharAt(sb.length()-1);
-        }
-        else { // last character is not a punctuation. Put dot in order to disambiguate sentence
+        } else if (sb.length() > 2 && Pattern.matches(REGEXPUNCT, "" + sb.charAt(sb.length() - 2))) { // last character is a punctuation
+            sb.deleteCharAt(sb.length() - 1);
+        } else { // last character is not a punctuation. Put dot in order to disambiguate sentence
             sb.setCharAt(sb.length() - 1, '.');
         }
 
@@ -52,7 +50,7 @@ public class FileTokenizer {
 
         // append pos tags
         for (SingleAnalysis singleAnalysis : analysisList) {
-            if (index < length ) {
+            if (index < length) {
                 String norm_word = TextProcessing.normalizedString(sentenceTripletList.get(index).getWord());
                 String norm_sf = TextProcessing.normalizedString(singleAnalysis.surfaceForm());
 
@@ -61,15 +59,14 @@ public class FileTokenizer {
                 norm_sf = norm_sf.replaceAll(REGEXPUNCT, "");
                 // norm_sf = norm_sf.replaceAll("’", "");
 
-                if ((clean_word.length()== norm_sf.length() || norm_sf.length() > 0) && clean_word.startsWith(norm_sf)) { // words are matched
+                if ((clean_word.length() == norm_sf.length() || norm_sf.length() > 0) && clean_word.startsWith(norm_sf)) { // words are matched
                     Triplet triplet = sentenceTripletList.get(index++);
                     String pos = singleAnalysis.getPos().getStringForm();
                     if (triplet.getPos() != null) { // pos = Apost
                         pos = triplet.getPos();
                     }
                     tripletList.add(new Triplet(triplet.getWord(),/* triplet.getMorphology(),*/ pos, triplet.getAnnotation()));
-                }
-                else { // words do not match, check prefix for matching
+                } else { // words do not match, check prefix for matching
                     int position = norm_word.indexOf("'");
                     if (position > 0 && position < norm_sf.length()) {
                         String prefix = norm_word.substring(0, position);
@@ -79,24 +76,19 @@ public class FileTokenizer {
                             String pos = singleAnalysis.getPos().getStringForm();
                             tripletList.add(new Triplet(triplet.getWord(), /* triplet.getMorphology(),*/ pos, triplet.getAnnotation()));
                         }
-                    }
-
-                    else if (norm_sf.length() > 0 && clean_word.contains(norm_sf)) { // zemberek bazı lemmalarda ? koyuyor başına
+                    } else if (norm_sf.length() > 0 && clean_word.contains(norm_sf)) { // zemberek bazı lemmalarda ? koyuyor başına
                         Triplet triplet = sentenceTripletList.get(index++);
                         String pos = singleAnalysis.getPos().getStringForm();
                         tripletList.add(new Triplet(triplet.getWord(), /* triplet.getMorphology(),*/ pos, triplet.getAnnotation()));
 
-                    }
-
-                    else {
+                    } else {
                         System.out.println("Word - Surface Form mismatch!");
                         System.out.println(norm_word + " - " + norm_sf);
                     }
 
 
                 }
-            }
-            else {
+            } else {
                 //System.out.println("Index out of bounds - Last string: " + sentenceTripletList.get(length - 1 ).getWord());
             }
         }
@@ -111,7 +103,7 @@ public class FileTokenizer {
 
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
-            br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
             String line = br.readLine();
 
@@ -119,15 +111,15 @@ public class FileTokenizer {
 
                 line = Utils.replaceSequence(line, textProcessing.getCharacterMap());
                 line = EmojiUtils.removeEmoji(line);
-                line = line.replaceAll(REGEXSPACE," "); // eliminate whitespaces
+                line = line.replaceAll(REGEXSPACE, " "); // eliminate whitespaces
 
                 //List<String> sentences = zemberek.extractSentences(line);
                 //for (String sentence : sentences) {
                 String sentence = line;
                 String[] tokenArray = sentence.split(" ");
 
-                if (tokenArray.length == 1 && tokenArray[0].equals("")) {}
-                else {
+                if (tokenArray.length == 1 && tokenArray[0].equals("")) {
+                } else {
                     boolean isNamedEntity = false;
                     String annotation = null;
                     int index = 0;
@@ -143,17 +135,14 @@ public class FileTokenizer {
                             for (entity.Triplet triplet : tripletList) {
                                 bw.write(triplet.getWord() + "\t" + triplet.getPos() + "\t" + triplet.getAnnotation() + "\n");
                             }
-
                             if (tripletList.size() > 0) {
                                 //bw.write("<S> <S>\n");
                                 bw.write("\n");
                             }
-
                             sentenceTripletList.clear();
                             tripletList.clear();
                             continue;
                         }
-
                          */
 
                         if (token.startsWith("<b_")) { // named entity detected
@@ -177,7 +166,7 @@ public class FileTokenizer {
                             if (token.startsWith("'") && token.length() > 1) {
                                 pos = "Apost";
                             }
-                            sentenceTripletList.add(new Triplet(token,  pos, "O"));
+                            sentenceTripletList.add(new Triplet(token, pos, "O"));
                         }
                         if (token.contains("<e_")) { // end of named entity
                             index = 0;
@@ -206,7 +195,7 @@ public class FileTokenizer {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally{
+        } finally {
             try {
                 if (bw != null) {
                     br.close();
@@ -227,7 +216,7 @@ public class FileTokenizer {
 
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
-            br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
             String line = br.readLine();
             while (line != null) {
@@ -238,8 +227,7 @@ public class FileTokenizer {
                     for (Token token : tokens) {
                         if (token.getText().startsWith("'") && token.getText().length() > 1) {
                             sentenceTripletList.add(new Triplet(token.getText(), "Apost", "O"));
-                        }
-                        else {
+                        } else {
                             sentenceTripletList.add(new Triplet(token.getText(), null, "O"));
                         }
 
@@ -266,7 +254,7 @@ public class FileTokenizer {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally{
+        } finally {
             try {
                 if (bw != null) {
                     br.close();
@@ -285,15 +273,14 @@ public class FileTokenizer {
 
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
-            br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
             String line = br.readLine(); // skip header
             while ((line = br.readLine()) != null) {
                 String content = null, date = null, id = null, title = null;
                 if (onlyContent) {
                     content = line;
-                }
-                else {
+                } else {
                     String[] args = line.split("\t");
                     id = args[0];
                     if (args.length < 4) {
@@ -305,7 +292,7 @@ public class FileTokenizer {
                     content = args[3];
                 }
 
-                content = content.replaceAll(" ", " ");
+                content = content.replaceAll(" ", " ");
 
                 content = Utils.replaceSequence(content, textProcessing.getCharacterMap());
                 content = EmojiUtils.removeEmoji(content);
@@ -334,7 +321,9 @@ public class FileTokenizer {
             try {
                 bw.close();
                 br.close();
-            } catch (IOException e) {e.printStackTrace();}
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
         }
     }
@@ -345,11 +334,11 @@ public class FileTokenizer {
         BufferedReader br = null;
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
-            br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
             String line;
             while ((line = br.readLine()) != null) {
-                String content, date=null, id=null, title=null;
+                String content, date = null, id = null, title = null;
                 if (onlyContent)
                     content = line;
                 else {
@@ -381,13 +370,15 @@ public class FileTokenizer {
                 bw.write("\n");
             }
 
-        } catch ( IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            try{
+            try {
                 bw.close();
                 br.close();
-            } catch (IOException e) {e.printStackTrace();}
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -403,7 +394,7 @@ public class FileTokenizer {
         Pattern patternDot = Pattern.compile("[a-zA-Z].[a-zA-Z]");
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
-            br = new BufferedReader( new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath), StandardCharsets.UTF_8));
 
             // This block configure the logger with handler and formatter
             fh = new FileHandler("logs/lemmatizePredictions.log");
@@ -438,20 +429,18 @@ public class FileTokenizer {
                         annotationList.add(token_annotation[1]);
                         tokenList.add(token.toLowerCase());
                     }
-                }
-
-                else { // end of sentence
+                } else { // end of sentence
                     if (sentence.toString().length() > 2) {
                         List<SingleAnalysis> singleAnalysisList = textProcessing.getZemberek().disambiguateSentence(sentence.toString());
                         int index = 0;
                         int tokenCnt = tokenList.size();
                         for (SingleAnalysis sa : singleAnalysisList) {
-                           // /*
+                            // /*
                             if (index < tokenCnt && sa.surfaceForm().equals(".") && !tokenList.get(index).equals(".")) {
                                 //logger.info("Dot Mismatch! " + sentence.toString());
                                 continue;
                             }
-                           // */
+                            // */
 
                             if (index < tokenCnt) {
                                 String lemma = sa.getDictionaryItem().normalizedLemma();//lemma;
@@ -466,13 +455,11 @@ public class FileTokenizer {
                                 lemma = lemma.trim();//.toLowerCase();
                                 if (!lemma.isEmpty()) {
                                     bw.write(lemma + "\t" + annotationList.get(index++) + /* "\t" + sa.getPos() + */ "\n");
-                                }
-                                else {
+                                } else {
                                     System.out.println("Lemma is Empty!");
                                 }
 
-                            }
-                            else {
+                            } else {
                                 String log = "Index Out Of Bounds: " + sa.surfaceForm() + "\n" +
                                         "Sentence: " + sentence.toString() + "\n" +
                                         "Line No = " + count;
@@ -494,7 +481,7 @@ public class FileTokenizer {
         } catch (Exception e) {
             System.out.println(count);
             e.printStackTrace();
-        } finally{
+        } finally {
             try {
                 if (bw != null) {
                     br.close();
@@ -507,15 +494,15 @@ public class FileTokenizer {
     }
 
     // merge token and predicted annotation
-    public  void mergeCrfFiles(String crfInputPath, String predPath, String outputPath) {
+    public void mergeCrfFiles(String crfInputPath, String predPath, String outputPath) {
         BufferedWriter bw = null;
         BufferedReader br = null;
         BufferedReader br2 = null;
 
         try {
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
-            br = new BufferedReader( new InputStreamReader(new FileInputStream(crfInputPath), StandardCharsets.UTF_8));
-            br2 = new BufferedReader( new InputStreamReader(new FileInputStream(predPath), StandardCharsets.UTF_8));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(crfInputPath), StandardCharsets.UTF_8));
+            br2 = new BufferedReader(new InputStreamReader(new FileInputStream(predPath), StandardCharsets.UTF_8));
 
             String line = br.readLine();
             String line2 = br2.readLine();
@@ -523,8 +510,7 @@ public class FileTokenizer {
             while (line != null) {
                 if (line.isEmpty()) {
                     bw.write("\n");
-                }
-                else {
+                } else {
                     String[] tokens1 = line.split("\t");
                     String[] tokens2 = line2.split("\t");
                     if (!tokens1[0].toLowerCase().equals(tokens2[0].toLowerCase())) {
@@ -541,7 +527,7 @@ public class FileTokenizer {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally{
+        } finally {
             try {
                 if (bw != null) {
                     br.close();
@@ -563,10 +549,10 @@ public class FileTokenizer {
 
         long count = 1;
         try {
-            br = new BufferedReader( new InputStreamReader(new FileInputStream(tokenizedContentPath), StandardCharsets.UTF_8));
-            bufferedReader = new BufferedReader( new InputStreamReader(new FileInputStream(predictionPath), StandardCharsets.UTF_8));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(tokenizedContentPath), StandardCharsets.UTF_8));
+            bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(predictionPath), StandardCharsets.UTF_8));
             bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), StandardCharsets.UTF_8));
-            dateWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream( "neo4j\\dates3.csv"), StandardCharsets.UTF_8));
+            dateWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("neo4j\\dates3.csv"), StandardCharsets.UTF_8));
 
             bw.write("nid:ID,word,NamedEntity,date,enum\n");
             dateWriter.write("date,dbid\n");
@@ -576,13 +562,15 @@ public class FileTokenizer {
                 String[] args = line.split("\t");
 
                 // /*
-                String title=null, content=null, dateStr=null;
+                String title = null, content = null, dateStr = null;
                 Long id = count;
                 if (args.length < 4) { // only content
                     content = line;
-                }
-                else {
+                } else {
                     id = Long.parseLong(args[0]);
+
+                    if (id == 275867)
+                        System.out.println(id);
 
                     dateStr = args[1].replaceAll("\t", " ");
                     int idx = dateStr.indexOf("T");
@@ -591,7 +579,7 @@ public class FileTokenizer {
                     title = args[2];
                     content = args[3];
                 }
-                 // */
+                // */
 
                 content = content.replace("\"", "'"); // necessary for neo4j
 
@@ -604,7 +592,7 @@ public class FileTokenizer {
                 for (String sentence : sentences) {
                     //neo4jManager.findNamedEntityMatches(bufferedReader, news, zemberek);
                     if (!sentence.trim().isEmpty())
-                        textProcessing.getNeo4jManager().getNamedEntities(bufferedReader, namedEntityList, false, sentence + " ||" + id);
+                        textProcessing.getNeo4jManager().getNamedEntities(bufferedReader, namedEntityList, true, sentence + " ||" + id);
                 }
 
                 for (NamedEntity ne : namedEntityList) {
@@ -625,33 +613,34 @@ public class FileTokenizer {
                 }
             }
 
-        } catch ( IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            try{
+            try {
                 br.close();
                 bufferedReader.close();
                 bw.close();
                 dateWriter.close();
-            } catch (IOException e) {}
+            } catch (IOException e) {
+            }
 
-            System.out.println("Count = " + (count-1));
+            System.out.println("Count = " + (count - 1));
         }
     }
 
     public static void main(String[] args) {
         String CRFPATH = "haberler-crf\\disambiguated-crf\\";
         String NEWSPATH = "haberler\\";
-        String NEO4JPATH ="neo4j\\";
+        String NEO4JPATH = "neo4j\\";
 
-        String contentPath = NEWSPATH+"content_orig.txt";
-        String tokenizedPath = NEWSPATH+"tokenized.txt";
-        String lemmatizedPath = NEWSPATH+"lemmatized.txt";
+        String contentPath = NEWSPATH + "content_orig.txt";
+        String tokenizedPath = NEWSPATH + "tokenized_db2.txt";
+        String lemmatizedPath = NEWSPATH + "lemmatized_db2.txt";
 
-        String crfInputPath = NEWSPATH+"haberler_crf_input.txt";
-        String crfOutputPath = CRFPATH+"haberler_crf_output.txt";
+        String crfInputPath = NEWSPATH + "haberler_crf_input.txt";
+        String crfOutputPath = CRFPATH + "haberler_crf_output.txt";
 
-        String rawNewsPath = NEWSPATH+"haberler_db.txt";
+        String rawNewsPath = NEWSPATH + "haberler_db2.txt";
 
         FileTokenizer ft = new FileTokenizer();
 
@@ -659,14 +648,12 @@ public class FileTokenizer {
 
         // You need to execute phases one by one because there is a dependecy between our NER module and this module.
         // phase 1: tokenize the content & transform the tokenized content into crf input format
-        ft.tokenizeContent(contentPath, tokenizedPath , true);
-        // ft.lemmatizeContent(tokenizedPath, lemmatizedPath, true);
-        ft.prepareCrfInput (tokenizedPath, crfInputPath);
+        ft.tokenizeContent(rawNewsPath, tokenizedPath , false);
+        ft.lemmatizeContent(tokenizedPath, lemmatizedPath, false);
+        // ft.prepareCrfInput (tokenizedPath, crfInputPath);
 
         // phase 2: get nodes and relations from crf output
-        ft.prepareNeo4jInputFromCRF(tokenizedPath, crfOutputPath, NEO4JPATH+"neo4j_input.txt");
+        // ft.prepareNeo4jInputFromCRF(tokenizedPath, crfOutputPath, NEO4JPATH + "neo4j_input_noun.txt");
 
     }
-
-
 }

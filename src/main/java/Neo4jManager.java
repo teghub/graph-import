@@ -254,6 +254,7 @@ public class Neo4jManager {
             line = line.replaceAll("\"", "'");
             if (!includeNoun) {
                 line = line.replaceAll("NOUN", "O");
+                line = line.replaceAll("VERB", "O");
             }
             String words[] = line.split("\t");
             String annotation = words[1];
@@ -261,7 +262,7 @@ public class Neo4jManager {
 
             if (!checkOnce) { // check whether first arguments are matched. If there is a mismatch, skip all mismatched arguments
                 if (!words[0].contains(args[0].toLowerCase())) {
-                    System.out.println("Not matched!");
+                    System.out.println("Not matched! " + sentence.substring(sentence.length()-6, sentence.length()));
                     while(true) {
                         line = br.readLine();
                         if (line == null)
@@ -271,6 +272,7 @@ public class Neo4jManager {
                         line = line.replaceAll("\"", "'");
                         if (!includeNoun) {
                             line = line.replaceAll("NOUN", "O");
+                            line = line.replaceAll("VERB", "O");
                         }
                         words = line.split("\t");
                         annotation = words[1];
@@ -284,7 +286,7 @@ public class Neo4jManager {
 
 
             boolean eone = false;
-            if (!annotation.equals("O") && !words[0].isEmpty()) { // named entity
+            if (!(annotation.equals("O") || annotation.equals("NOUN") || annotation.equals("VERB")) && !words[0].isEmpty()) { // named entity
                 if (annot == null || annot.equals(annotation)) { // part of current named entity
                     String lemma = words[0];
                     sb.append(" " + lemma);
@@ -308,11 +310,11 @@ public class Neo4jManager {
                     namedEntity = new NamedEntity(token, annot);
                 }
                 //if(!isElementOf(neList, namedEntity)) {
-                    neList.add(namedEntity);
+                neList.add(namedEntity);
                 //}
 
                 sb.delete(0, sb.length());
-                if (annotation.equals("O")) { // current word is not NE
+                if (annotation.equals("O") || annotation.equals("NOUN") || annotation.equals("VERB")) { // current word is not NE
                     annot = null;
                 } else { // current word is NE
                     annot = annotation;
@@ -321,7 +323,7 @@ public class Neo4jManager {
             }
 
             ///*
-            if (includeNoun && annotation.equalsIgnoreCase("noun")) {
+            if (includeNoun && (annotation.equalsIgnoreCase("noun") || annotation.equalsIgnoreCase("verb"))) {
                 NamedEntity namedEntity = getNamedEntity(words[0], "O");
                 if (namedEntity == null) {
                     namedEntity = new NamedEntity(words[0], "O");

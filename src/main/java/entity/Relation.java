@@ -13,6 +13,7 @@ public class Relation {
         this.start = start;
         this.end = end;
         this.label = label;
+        this.weight = "1.0";
     }
 
     public Long getId() { return id;}

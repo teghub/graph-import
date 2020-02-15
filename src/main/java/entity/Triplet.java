@@ -27,6 +27,8 @@ public class Triplet {
 
     public void setPos(String _pos) {this.pos = _pos;}
 
+    public void setAnnotation(String _annotation) {this.annotation = _annotation;}
+
     public void print(){
         System.out.println(word + " " + morphology + " " + pos + " " + annotation);
     }
